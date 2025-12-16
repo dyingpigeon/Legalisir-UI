@@ -1,49 +1,61 @@
-// import Header from '@/app/(app)/Header'
+// app/dashboard/page.tsx
+"use client";
 
-// export const metadata = {
-//     title: 'Laravel - Dashboard',
-// }
+import { useEffect } from "react";
+import { usePageData } from "@/app/(app)/layout";
+import { Button } from "@/components/ui/button";
+import { Plus, Download } from "lucide-react";
 
-// const Dashboard = () => {
-//     return (
-//         <>
-//             <Header title="Dashboard" />
-//             <div className="py-12">
-//                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-//                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-//                         <div className="p-6 bg-white border-b border-gray-200">
-//                             You are logged in!
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-//         </>
-//     )
-// }
+export default function DashboardPage() {
+  const { setPageData } = usePageData();
 
-// export default Dashboard
+  useEffect(() => {
+    // Set data untuk Header
+    setPageData({
+      title: "Dashboard Overview",
+      subtitle: "Welcome back, Here's what's happening today.",
+      actions: (
+        <>
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <Button size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            New Project
+          </Button>
+        </>
+      ),
+    });
 
-import Header from "@/app/(app)/Header";
-import { Metadata } from "next";
+    // Cleanup ketika komponen unmount
+    return () => {
+      setPageData(null);
+    };
+  }, [setPageData]);
 
-export const metadata: Metadata = {
-  title: "Laravel - Dashboard",
-};
-
-const Dashboard = () => {
   return (
-    <>
-      <div className="py-12">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-            <div className="p-9 bg-white border-b border-gray-200">
-              You are logged in!
-            </div>
-          </div>
+    <div className="p-3">
+      {/* Konten dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold">Permohonan Masuk Hari Ini</h3>
+          <p className="text-3xl font-bold mt-2">50</p>
         </div>
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold">Permohonan Diverifikasi</h3>
+          <p className="text-3xl font-bold mt-2">12</p>
+        </div>
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold">Dokumen Sudah Ditandatangani</h3>
+          <p className="text-3xl font-bold mt-2">1,254</p>
+        </div>
+        <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold">Total semua permohonan</h3>
+          <p className="text-3xl font-bold mt-2">5454</p>
+        </div>
+        {/* ... konten lainnya */}
       </div>
-    </>
+    </div>
   );
-};
-
-export default Dashboard;
+}
