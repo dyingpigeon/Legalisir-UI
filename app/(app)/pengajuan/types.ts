@@ -8,7 +8,7 @@ export interface Permohonan {
   keperluan: string;
   file: string;
   file_ijazah_verified: string | null;
-  status: number; // 1 = pending, 2 = processing, 3 = success, 4 = failed?
+  status: number;
   tanggal_diambil: string | null;
   created_at: string;
   updated_at: string;
@@ -20,4 +20,11 @@ export interface Permohonan {
 }
 
 // Untuk mapping status
-export type StatusType = "pending" | "processing" | "success" | "failed";
+export type StatusType =
+  | "dimulai"
+  | "verifikasi"
+  | "tandatangan"
+  | "ready"
+  | "ambil"
+  | "tolak"
+  | "batal";

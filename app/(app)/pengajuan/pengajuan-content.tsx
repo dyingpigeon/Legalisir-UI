@@ -1,131 +1,66 @@
 // app/(app)/pengajuan/pengajuan-content.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { usePageData } from "@/app/(app)/layout";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, RefreshCw } from "lucide-react";
+import { Plus, Download, RefreshCw, AlertCircle } from "lucide-react";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
-import { Permohonan } from "./types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
-import { laravelFetch } from "@/lib/laravel-fetch";
+import { usePermohonan, useExportPermohonan } from "@/hooks/usePermohonan";
+import { Permohonan } from "@/types/permohonan";
 
 interface PengajuanContentProps {
   initialData: Permohonan[];
 }
 
-export default function PengajuanContent({ initialData }: PengajuanContentProps) {
+export default function PengajuanContent({
+  initialData,
+}: PengajuanContentProps) {
   const { setPageData } = usePageData();
   const router = useRouter();
-  const [data, setData] = useState<Permohonan[]>(initialData);
-  const [loading, setLoading] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
 
-  console.log("PengajuanContent received data:", initialData); // Debugging
+  // Gunakan SWR hook dengan initialData dari server
+  const { data, error, isLoading, isValidating, refresh, isEmpty } =
+    usePermohonan(initialData);
 
-  const refreshData = async () => {
-    setLoading(true);
-    setRefreshError(null);
-    try {
-      const response = await laravelFetch("/api/permohonan/show");
-      
-      if (!response.ok) {
-        throw new Error(`Failed to refresh: ${response.status}`);
-      }
+  const { exportData, isExporting, error: exportError } = useExportPermohonan();
 
-      const result = await response.json();
-      
-      console.log("Refresh response:", result); // Debugging
-      
-      // Handle different response structures - SESUAIKAN DENGAN RESPONSE BARU
-      let newData: Permohonan[] = [];
-      
-      if (result.success && result.data && Array.isArray(result.data.data)) {
-        newData = result.data.data;
-        console.log("Refresh: Data from result.data.data", newData.length);
-      } else if (Array.isArray(result)) {
-        newData = result;
-        console.log("Refresh: Data from array", newData.length);
-      } else if (result.data && Array.isArray(result.data)) {
-        newData = result.data;
-        console.log("Refresh: Data from result.data", newData.length);
-      } else if (result.permohonan && Array.isArray(result.permohonan)) {
-        newData = result.permohonan;
-        console.log("Refresh: Data from result.permohonan", newData.length);
-      }
-      
-      setData(newData);
-      
-    } catch (error) {
-      console.error("Error refreshing data:", error);
-      setRefreshError(error instanceof Error ? error.message : "Refresh failed");
-      
-      // Show error toast
-      if (typeof window !== 'undefined') {
-        alert("Gagal merefresh data: " + (error instanceof Error ? error.message : "Unknown error"));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      const response = await laravelFetch("/api/permohonan/export", {
-        method: 'POST',
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'permohonan-export.xlsx';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error("Export error:", error);
-      alert("Gagal mengekspor data");
-    }
-  };
-
-  const handleNewPermohonan = () => {
-    router.push("/pengajuan/baru");
-  };
-
+  // Setup page header
   useEffect(() => {
-    // Set data untuk Header
     setPageData({
       title: "Dashboard Permohonan Legalisir",
-      subtitle: "Selamat datang kembali, berikut adalah statistik dan daftar permohonan yang perlu perhatian Anda.",
+      subtitle:
+        "Selamat datang kembali, berikut adalah statistik dan daftar permohonan yang perlu perhatian Anda.",
       actions: (
         <>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
-            onClick={refreshData}
-            disabled={loading}
+            onClick={() => refresh()}
+            disabled={isValidating}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            {loading ? "Memuat..." : "Refresh"}
+            <RefreshCw
+              className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
+            />
+            {isValidating ? "Memuat..." : "Refresh"}
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
-            onClick={handleExport}
+            onClick={exportData}
+            disabled={isExporting}
             className="flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Export
+            {isExporting ? "Mengekspor..." : "Export"}
           </Button>
-          <Button 
+          <Button
             size="sm"
-            onClick={handleNewPermohonan}
+            onClick={() => router.push("/pengajuan/baru")}
             className="flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -135,66 +70,156 @@ export default function PengajuanContent({ initialData }: PengajuanContentProps)
       ),
     });
 
-    return () => {
-      setPageData(null);
-    };
-  }, [setPageData, loading]);
+    return () => setPageData(null);
+  }, [setPageData, refresh, isValidating, isExporting, router]);
 
-  // Hitung statistik dari data
+  // Hitung statistik
   const stats = {
-    pending: data.filter(d => d.status === 1).length,
-    processing: data.filter(d => d.status === 2).length,
-    success: data.filter(d => d.status === 3).length,
-    failed: data.filter(d => d.status === 4).length,
     total: data.length,
+    dimulai: data.filter((d) => d.status === 1).length,
+    verifikasi: data.filter((d) => d.status === 2).length,
+    tandatangan: data.filter((d) => d.status === 3).length,
+    ready: data.filter((d) => d.status === 4).length,
+    ambil: data.filter((d) => d.status === 5).length,
+    tolak: data.filter((d) => d.status === 6).length,
+    batal: data.filter((d) => d.status === 7).length,
   };
 
-  // Format angka dengan titik
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('id-ID').format(num);
+    return new Intl.NumberFormat("id-ID").format(num);
   };
+
+  // Show export error jika ada
+  useEffect(() => {
+    if (exportError) {
+      console.error("Export error:", exportError);
+    }
+  }, [exportError]);
+
+  // Loading state (hanya jika tidak ada initial data sama sekali)
+  if (isLoading && initialData.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Memuat data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state (hanya jika ada error dan tidak ada data sama sekali)
+  if (error && data.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>
+              Gagal memuat data: {error.message || "Terjadi kesalahan"}
+            </span>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => refresh()}>
+              Coba Lagi
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/login")}
+            >
+              Ke Halaman Login
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Debug Info - bisa dihapus setelah fix */}
-      <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded text-sm">
-        <strong>Debug:</strong> Data diterima: {data.length} items | 
-        Status: {stats.pending} pending, {stats.processing} processing
-      </div>
-
-      {/* Error Message */}
-      {refreshError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          <div className="flex items-center">
-            <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <span>Gagal refresh: {refreshError}</span>
-          </div>
+      {/* Debug info (bisa dihapus nanti) */}
+      <div className="text-sm text-gray-500">
+        <div className="flex items-center gap-4">
+          <span>Data dari server: {initialData.length} item</span>
+          <span>•</span>
+          <span>Data terkini: {data.length} item</span>
+          <span>•</span>
+          <span>Status: {isLoading ? "Loading..." : "Ready"}</span>
+          {error && (
+            <span className="text-red-500">• Error: {error.message}</span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Statistik Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white p-6 rounded-lg shadow border">
-          <h3 className="text-lg font-semibold text-gray-700">Total Permohonan</h3>
-          <p className="text-3xl font-bold mt-2 text-gray-800">{formatNumber(stats.total)}</p>
+          <h3 className="text-lg font-semibold text-gray-700">
+            Total Permohonan
+          </h3>
+          <p className="text-3xl font-bold mt-2 text-gray-800">
+            {formatNumber(stats.total)}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">Semua status</p>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow border">
-          <h3 className="text-lg font-semibold text-gray-700">Menunggu</h3>
-          <p className="text-3xl font-bold mt-2 text-yellow-600">{formatNumber(stats.pending)}</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-700">Menunggu</h3>
+            <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+              {stats.dimulai}
+            </span>
+          </div>
+          <p className="text-3xl font-bold mt-2 text-yellow-600">
+            {formatNumber(stats.dimulai)}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Status: Menunggu Persetujuan
+          </p>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow border">
-          <h3 className="text-lg font-semibold text-gray-700">Diproses</h3>
-          <p className="text-3xl font-bold mt-2 text-blue-600">{formatNumber(stats.processing)}</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-700">
+              Diverifikasi
+            </h3>
+            <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+              {stats.verifikasi}
+            </span>
+          </div>
+          <p className="text-3xl font-bold mt-2 text-blue-600">
+            {formatNumber(stats.verifikasi)}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">Status: Diverifikkasi</p>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow border">
-          <h3 className="text-lg font-semibold text-gray-700">Selesai</h3>
-          <p className="text-3xl font-bold mt-2 text-green-600">{formatNumber(stats.success)}</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-700">Sudah TTD</h3>
+            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+              {stats.tandatangan}
+            </span>
+          </div>
+          <p className="text-3xl font-bold mt-2 text-green-600">
+            {formatNumber(stats.tandatangan)}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Status: Sudah DItandatangani
+          </p>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow border">
-          <h3 className="text-lg font-semibold text-gray-700">Ditolak</h3>
-          <p className="text-3xl font-bold mt-2 text-red-600">{formatNumber(stats.failed)}</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-700">Ditolak</h3>
+            <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+              {stats.tolak}
+            </span>
+          </div>
+          <p className="text-3xl font-bold mt-2 text-red-600">
+            {formatNumber(stats.tolak)}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">Status: Ditolak</p>
         </div>
       </div>
 
@@ -203,17 +228,64 @@ export default function PengajuanContent({ initialData }: PengajuanContentProps)
         <div className="p-6 border-b">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h3 className="text-xl font-semibold">Daftar Permohonan Terbaru</h3>
-              <p className="text-gray-600 mt-1">Berikut adalah daftar permohonan legalisir ijazah.</p>
+              <h3 className="text-xl font-semibold">Daftar Permohonan</h3>
+              <p className="text-gray-600 mt-1">
+                Berikut adalah daftar permohonan legalisir ijazah.
+              </p>
             </div>
             <div className="text-sm text-gray-500">
-              Menampilkan <span className="font-semibold">{data.length}</span> data
-              {loading && " • Refreshing..."}
+              Menampilkan <span className="font-semibold">{data.length}</span>{" "}
+              data
+              {isValidating && " • Memperbarui..."}
+              {isExporting && " • Mengekspor..."}
             </div>
           </div>
         </div>
         <div className="p-1 overflow-x-auto">
-          <DataTable columns={columns} data={data} />
+          {isEmpty ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 mb-4">
+                <svg
+                  className="mx-auto h-12 w-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Belum ada data
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Tidak ada permohonan yang ditemukan.
+              </p>
+              <Button onClick={() => router.push("/pengajuan/baru")}>
+                <Plus className="w-4 h-4 mr-2" />
+                Buat Permohonan Baru
+              </Button>
+            </div>
+          ) : (
+            // <div className="flex-1 flex flex-col w-full">
+              <Tabs defaultValue="Semua">
+                <TabsList>
+                  <TabsTrigger value="account">Account</TabsTrigger>
+                  <TabsTrigger value="password">Password</TabsTrigger>
+                </TabsList>
+                <TabsContent value="account">
+                  <DataTable columns={columns} data={data} />
+                </TabsContent>
+                <TabsContent value="password">
+                  Change your password here.
+                </TabsContent>
+              </Tabs>
+            // </div>
+          )}
         </div>
       </div>
     </div>

@@ -25,7 +25,6 @@ export function DataTable<TData, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
-  
   console.log("DataTable received data:", data); // Debugging
   console.log("DataTable columns:", columns);
 
