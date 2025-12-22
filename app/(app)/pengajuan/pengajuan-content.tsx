@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { usePermohonan, useExportPermohonan } from "@/hooks/usePermohonan";
 import { Permohonan } from "@/types/permohonan";
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface PengajuanContentProps {
   initialData: Permohonan[];
@@ -277,13 +278,17 @@ export default function PengajuanContent({
                   <TabsTrigger value="account">Account</TabsTrigger>
                   <TabsTrigger value="password">Password</TabsTrigger>
                 </TabsList>
+                 <ScrollArea className="h-80 rounded-md border">
+
                 <TabsContent value="account">
                   <DataTable columns={columns} data={data} />
                 </TabsContent>
                 <TabsContent value="password">
                   Change your password here.
                 </TabsContent>
+                </ScrollArea>
               </Tabs>
+
             // </div>
           )}
         </div>
