@@ -1,39 +1,19 @@
-// types/permohonan.ts
-// export interface Permohonan {
-//   id: number;
-//   nomor_permohonan: string;
-//   nama: string;
-//   nim?: string;
-//   prodi?: string;
-//   fakultas?: string;
-//   jenis_dokumen: string;
-//   jumlah_dokumen: number;
-//   status: number;
-//   keterangan?: string;
-//   tanggal_pengajuan: string;
-//   tanggal_selesai?: string;
-//   created_at: string;
-//   updated_at: string;
-// }
-
 export interface Permohonan {
   id: number;
-  user_id: number;
-  username: string;
-  nomor_ijazah: string;
-  jumlah_lembar: number;
+  userId: number;
+  userName: string;
+  username: string | number;
+  nomorIjazah: string | number;
+  jumlahLembar: number;
   keperluan: string;
   file: string;
-  file_ijazah_verified: string | null;
+  file_url: string;
+  file_ijazah_verified?: string | null;
   status: number;
-  tanggal_diambil: string | null;
-  created_at: string;
-  updated_at: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
+  statusText: string;
+  tanggalDiambil: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApiResponse<T = any> {

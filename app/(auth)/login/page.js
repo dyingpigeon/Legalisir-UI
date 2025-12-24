@@ -13,10 +13,8 @@ import AuthSessionStatus from '@/app/(auth)/AuthSessionStatus'
 const Login = () => {
     const router = useRouter()
 
-    const { login } = useAuth({
-        middleware: 'guest',
-        redirectIfAuthenticated: '/dashboard',
-    })
+    // HAPUS middleware parameter, cukup ambil login, user, dan loading
+    const { login, user, loading } = useAuth()
 
     const [loginField, setLoginField] = useState('')
     const [password, setPassword] = useState('')
@@ -24,13 +22,25 @@ const Login = () => {
     const [errors, setErrors] = useState([])
     const [status, setStatus] = useState(null)
 
+    // Redirect ke dashboard jika user sudah login
     useEffect(() => {
-        if (router.reset?.length > 0 && errors.length === 0) {
-            setStatus(atob(router.reset))
-        } else {
-            setStatus(null)
+        if (!loading && user) {
+            router.push('/dashboard');
         }
-    })
+    }, [user, loading, router]);
+
+    // Handle reset password status dari URL
+    useEffect(() => {
+        // Perbaiki cara mendapatkan query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const resetParam = urlParams.get('reset');
+        
+        if (resetParam && errors.length === 0) {
+            setStatus(atob(resetParam));
+        } else {
+            setStatus(null);
+        }
+    }, [errors.length]);
 
     const submitForm = async event => {
         event.preventDefault()
@@ -42,6 +52,30 @@ const Login = () => {
             setErrors,
             setStatus,
         })
+    }
+
+    // Tampilkan loading jika sedang check auth state
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Memeriksa sesi...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Jika sudah login (tapi useEffect belum redirect), tampilkan loading
+    if (user) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Mengarahkan ke dashboard...</p>
+                </div>
+            </div>
+        );
     }
 
     return (

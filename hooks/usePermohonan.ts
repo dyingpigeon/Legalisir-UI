@@ -15,14 +15,13 @@ const fetcher = async (url: string) => {
   } catch (error: any) {
     console.error("Fetcher error:", error);
 
-    // Jika unauthorized, bisa trigger redirect atau handle khusus
-    if (error.response?.status === 401) {
-      console.warn("Unauthorized - mungkin perlu login");
-      // Tidak throw error, return empty object untuk prevent UI crash
+    // Handle token expired errors
+    if (error.response?.status === 401 || error.response?.status === 419) {
+      console.warn("Token expired - auth system will handle refresh");
+      // Return empty untuk prevent UI crash
       return { data: [] };
     }
 
-    // Untuk error lainnya, tetap throw
     throw error;
   }
 };
@@ -36,7 +35,8 @@ export const usePermohonan = (initialData?: Permohonan[]) => {
     isLoading,
     mutate,
     isValidating,
-  } = useSWR("/api/permohonan/show", fetcher, {
+  // } = useSWR("/api/permohonan/show", fetcher, {
+  } = useSWR("/api/permohonan/show?per_page=20", fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
     revalidateOnMount: initialData ? false : true,
@@ -44,7 +44,8 @@ export const usePermohonan = (initialData?: Permohonan[]) => {
     fallbackData: initialData ? { data: initialData } : undefined,
     onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
       // Jangan retry untuk 401 error
-      if (error.response?.status === 401) return;
+      if (error.response?.status === 401 || error.response?.status === 419)
+        return;
 
       // Retry maksimal 3 kali untuk error lainnya
       if (retryCount >= 3) return;
