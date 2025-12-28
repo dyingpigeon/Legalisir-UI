@@ -12,51 +12,9 @@ import { useRouter } from "next/navigation";
 import { usePermohonan, useExportPermohonan } from "@/hooks/usePermohonan";
 import { Permohonan } from "@/types/permohonan";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
 
 interface PengajuanContentProps {
   initialData: Permohonan[];
-}
-
-// Komponen PDF Viewer terpisah (opsional)
-function PDFViewer({ pdfUrl }: { pdfUrl: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Document Viewer</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <embed
-          src={pdfUrl}
-          type="application/pdf"
-          width="100%"
-          height="600px"
-          className="rounded-lg shadow-lg"
-        />
-        <p className="mt-4 text-sm text-gray-500">
-          Jika dokumen tidak muncul, Anda dapat
-          <a
-            href={pdfUrl}
-            download
-            className="text-blue-600 hover:underline ml-1"
-          >
-            download PDF
-          </a>
-          .
-        </p>
-      </CardContent>
-    </Card>
-  );
 }
 
 export default function PengajuanContent({
@@ -166,30 +124,6 @@ export default function PengajuanContent({
 
   return (
     <div className="p-6 space-y-6">
-      {/* Contoh penggunaan Drawer dengan PDF Viewer */}
-      <Drawer>
-        <DrawerTrigger asChild>
-          <Button variant="outline">Lihat PDF Contoh</Button>
-        </DrawerTrigger>
-        <DrawerContent className="h-[80vh]">
-          <DrawerHeader>
-            <DrawerTitle>Pratinjau Dokumen</DrawerTitle>
-            <DrawerDescription>
-              Dokumen PDF akan ditampilkan di bawah
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="px-4 flex-1 overflow-auto">
-            {/* Ganti dengan URL PDF yang sesungguhnya */}
-            <PDFViewer pdfUrl="/contoh-dokumen.pdf" />
-          </div>
-          <DrawerFooter>
-            <Button>Download</Button> 
-            <DrawerClose>
-              <Button>Tutup</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
       {/* Data Table */}
       <div className="bg-white rounded-lg shadow border">
         <div className="p-4 border-b">
@@ -235,30 +169,30 @@ export default function PengajuanContent({
               </Button>
             </div>
           ) : (
-              <Tabs defaultValue="Semua">
-                <TabsList>
-                  <TabsTrigger value="Semua">Semua</TabsTrigger>
-                  <TabsTrigger value="Menunggu">Menunggu</TabsTrigger>
-                  <TabsTrigger value="Diverifikasi">Diverifikasi</TabsTrigger>
-                </TabsList>
-                <ScrollArea className="h-[400px] rounded-md border mt-4">
-                  <TabsContent value="Semua" className="p-4">
-                    <DataTable columns={columns} data={data} />
-                  </TabsContent>
-                  <TabsContent value="Menunggu" className="p-4">
-                    <DataTable 
-                      columns={columns} 
-                      data={data.filter(d => d.status === 1)} 
-                    />
-                  </TabsContent>
-                  <TabsContent value="Diverifikasi" className="p-4">
-                    <DataTable 
-                      columns={columns} 
-                      data={data.filter(d => d.status === 2)} 
-                    />
-                  </TabsContent>
-                </ScrollArea>
-              </Tabs>
+            <Tabs defaultValue="Semua">
+              <TabsList>
+                <TabsTrigger value="Semua">Semua</TabsTrigger>
+                <TabsTrigger value="Menunggu">Menunggu</TabsTrigger>
+                <TabsTrigger value="Diverifikasi">Diverifikasi</TabsTrigger>
+              </TabsList>
+              <ScrollArea className="h-[400px] rounded-md border mt-4">
+                <TabsContent value="Semua" className="p-4">
+                  <DataTable columns={columns} data={data} />
+                </TabsContent>
+                <TabsContent value="Menunggu" className="p-4">
+                  <DataTable
+                    columns={columns}
+                    data={data.filter((d) => d.status === 1)}
+                  />
+                </TabsContent>
+                <TabsContent value="Diverifikasi" className="p-4">
+                  <DataTable
+                    columns={columns}
+                    data={data.filter((d) => d.status === 2)}
+                  />
+                </TabsContent>
+              </ScrollArea>
+            </Tabs>
           )}
         </div>
       </div>

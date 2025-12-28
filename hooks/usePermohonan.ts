@@ -1,4 +1,4 @@
-// hooks/usePermohonan.ts
+// hooks/usePermohonan.ts - FINAL CLEAN VERSION
 "use client";
 
 import useSWR from "swr";
@@ -6,24 +6,12 @@ import useSWRMutation from "swr/mutation";
 import axios from "@/lib/axios";
 import { Permohonan } from "@/types/permohonan";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-// Fetcher dengan error handling
+// Fetcher sederhana - biarkan interceptor handle errors
 const fetcher = async (url: string) => {
-  try {
-    const response = await axios.get(url);
-    return response.data;
-  } catch (error: any) {
-    console.error("Fetcher error:", error);
-
-    // Handle token expired errors
-    if (error.response?.status === 401 || error.response?.status === 419) {
-      console.warn("Token expired - auth system will handle refresh");
-      // Return empty untuk prevent UI crash
-      return { data: [] };
-    }
-
-    throw error;
-  }
+  const response = await axios.get(url);
+  return response.data;
 };
 
 export const usePermohonan = (initialData?: Permohonan[]) => {
@@ -35,49 +23,61 @@ export const usePermohonan = (initialData?: Permohonan[]) => {
     isLoading,
     mutate,
     isValidating,
-  // } = useSWR("/api/permohonan/show", fetcher, {
   } = useSWR("/api/permohonan/show?per_page=20", fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
     revalidateOnMount: initialData ? false : true,
     dedupingInterval: 2000,
     fallbackData: initialData ? { data: initialData } : undefined,
-    onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
-      // Jangan retry untuk 401 error
-      if (error.response?.status === 401 || error.response?.status === 419)
-        return;
-
-      // Retry maksimal 3 kali untuk error lainnya
-      if (retryCount >= 3) return;
-
-      // Retry setelah 5 detik
-      setTimeout(() => revalidate({ retryCount }), 5000);
-    },
+    shouldRetryOnError: false, // Biarkan interceptor handle refresh
   });
 
   // Normalize data dengan fallback ke initialData
   const normalizeData = (data: any): Permohonan[] => {
-    // Jika data dari fetcher adalah { data: [] } karena 401 error
-    if (data?.data && Array.isArray(data.data) && data.data.length === 0) {
-      return data.data; // Return empty array
+    if (!data) return [];
+    
+    // Format 1: { success: true, data: { data: [] } }
+    if (data?.success && data?.data?.data && Array.isArray(data.data.data)) {
+      return data.data.data;
     }
-
-    // Normalize seperti biasa
-    if (data?.success && data?.data?.data) return data.data.data;
-    if (Array.isArray(data)) return data;
-    if (data?.data && Array.isArray(data.data)) return data.data;
-    if (data?.permohonan && Array.isArray(data.permohonan))
+    
+    // Format 2: { data: [] }
+    if (data?.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+    
+    // Format 3: Array langsung
+    if (Array.isArray(data)) {
+      return data;
+    }
+    
+    // Format 4: { permohonan: [] }
+    if (data?.permohonan && Array.isArray(data.permohonan)) {
       return data.permohonan;
+    }
 
     // Fallback ke initialData jika ada
     if (initialData && Array.isArray(initialData)) {
       return initialData;
     }
 
+    console.warn("Unknown data format:", data);
     return [];
   };
 
   const data = rawData ? normalizeData(rawData) : initialData || [];
+
+  // Jika error dan data kosong, bisa redirect atau show error
+  useEffect(() => {
+    if (error && data.length === 0) {
+      console.error("Error fetching permohonan:", error);
+      
+      // Jika error 401/419, refresh token sudah dihandle interceptor
+      if (error.response?.status === 401 || error.response?.status === 419) {
+        console.log("Auth error - refresh token should be triggered");
+      }
+    }
+  }, [error, data]);
 
   return {
     data,
@@ -94,17 +94,8 @@ export const useExportPermohonan = () => {
   const router = useRouter();
 
   const triggerExport = async (url: string) => {
-    try {
-      const response = await axios.post(url, {}, { responseType: "blob" });
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        // Redirect ke login jika unauthorized
-        router.push("/login");
-        throw new Error("Unauthorized - please login");
-      }
-      throw error;
-    }
+    const response = await axios.post(url, {}, { responseType: "blob" });
+    return response.data;
   };
 
   const { data, error, isMutating, trigger, reset } = useSWRMutation(
@@ -132,7 +123,7 @@ export const useExportPermohonan = () => {
 
       // Show user-friendly error message
       let errorMessage = "Gagal mengekspor data";
-      if (error.message.includes("Unauthorized")) {
+      if (error.response?.status === 401 || error.response?.status === 419) {
         errorMessage = "Sesi telah berakhir, silakan login kembali";
       }
 
@@ -156,49 +147,21 @@ export const usePermohonanMutation = () => {
   const { mutate } = useSWR("/api/permohonan/show");
   const router = useRouter();
 
-  const handleApiError = (error: any) => {
-    if (error.response?.status === 401) {
-      router.push("/login");
-      throw new Error("Session expired. Please login again.");
-    }
-    throw error;
-  };
-
   const create = async (data: Partial<Permohonan>) => {
-    try {
-      const response = await axios.post("/api/permohonan", data);
-
-      // Refresh data setelah create
-      mutate();
-
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
-    }
+    const response = await axios.post("/api/permohonan", data);
+    mutate(); // Refresh data setelah create
+    return response.data;
   };
 
   const update = async (id: number, data: Partial<Permohonan>) => {
-    try {
-      const response = await axios.put(`/api/permohonan/${id}`, data);
-
-      // Refresh data setelah update
-      mutate();
-
-      return response.data;
-    } catch (error) {
-      return handleApiError(error);
-    }
+    const response = await axios.put(`/api/permohonan/${id}`, data);
+    mutate(); // Refresh data setelah update
+    return response.data;
   };
 
   const remove = async (id: number) => {
-    try {
-      await axios.delete(`/api/permohonan/${id}`);
-
-      // Refresh data setelah delete
-      mutate();
-    } catch (error) {
-      return handleApiError(error);
-    }
+    await axios.delete(`/api/permohonan/${id}`);
+    mutate(); // Refresh data setelah delete
   };
 
   return {
